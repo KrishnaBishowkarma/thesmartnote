@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +39,11 @@ export default function Auth() {
             message: 'Email verification successful! You can now sign in to your account.'
           });
         }
+      } else if (type === 'unverified') {
+        setVerificationMessage({
+          type: 'error',
+          message: 'Please verify your email before accessing the application.'
+        });
       }
     };
 
@@ -59,33 +63,45 @@ export default function Auth() {
           description: "We've sent you a password reset link. Please check your email.",
         });
         setIsForgotPassword(false);
+        setEmail("");
+        setPassword("");
       } else if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        // First check if user exists
+        const { data: existingUser } = await supabase.auth.getUser();
+        if (existingUser.user) {
+          toast.error("Account exists", {
+            description: "This email is already registered. Please sign in instead.",
+          });
+          setIsSignUp(false);
+          return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth?type=signup`,
           },
         });
-        if (error) {
-          if (error.message === "User already registered") {
-            toast.error("Account exists", {
-              description: "This email is already registered. Please sign in instead.",
-            });
-            setIsSignUp(false);
-          } else {
-            throw error;
-          }
-          return;
+
+        if (error) throw error;
+
+        if (data?.user) {
+          toast.success("Verification email sent", {
+            description: "Please check your email to verify your account. You must verify your email before signing in.",
+          });
+          // Sign out the user until they verify their email
+          await supabase.auth.signOut();
+          setEmail("");
+          setPassword("");
         }
-        toast.success("Verification email sent", {
-          description: "Please check your email to verify your account. You can close this tab after verification and log in to your account.",
-        });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        // Sign in
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+
         if (error) {
           if (error.message === "Invalid login credentials") {
             toast.error("Invalid credentials", {
@@ -96,14 +112,26 @@ export default function Auth() {
           }
           return;
         }
+
+        // Check if email is verified
+        if (!data.user?.email_confirmed_at) {
+          toast.error("Email not verified", {
+            description: "Please verify your email before signing in. Check your inbox for the verification link.",
+          });
+          // Sign out the user since they're not verified
+          await supabase.auth.signOut();
+          return;
+        }
+
         toast.success("Welcome back!", {
           description: "Successfully signed in.",
         });
         navigate("/notes");
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast.error("Error", {
-        description: error.message,
+        description: error.message || "An unexpected error occurred.",
       });
     } finally {
       setLoading(false);
@@ -115,6 +143,7 @@ export default function Auth() {
     setPassword("");
     setIsForgotPassword(false);
     setIsSignUp(false);
+    setVerificationMessage(null);
   };
 
   return (
@@ -143,7 +172,7 @@ export default function Auth() {
                 </Button>
               )}
               {verificationMessage.type === 'error' && (
-                <Button onClick={() => setVerificationMessage(null)} variant="outline" className="w-full mt-4">
+                <Button onClick={resetForm} variant="outline" className="w-full mt-4">
                   Try Again
                 </Button>
               )}
@@ -231,7 +260,7 @@ export default function Auth() {
                   type="button"
                   variant="ghost"
                   className="w-full"
-                  onClick={() => resetForm()}
+                  onClick={resetForm}
                 >
                   Back to sign in
                 </Button>
