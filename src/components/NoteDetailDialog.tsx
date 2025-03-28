@@ -51,7 +51,10 @@ export function NoteDetailDialog({
           summary={summary} 
           onClose={() => toast.dismiss(toastData)} 
         />
-      ), { duration: 0 });
+      ), { 
+        duration: 0,  // This ensures the toast stays until manually dismissed
+        position: 'top-center'  // Changed from 'center' to 'top-center'
+      });
     } catch (error) {
       console.error("Error summarizing content:", error);
       toast.error("Failed to summarize content. Please try again later.");

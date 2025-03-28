@@ -9,12 +9,12 @@ import { NoteDetailDialog } from "./NoteDetailDialog";
 import { getOfflineNotes } from "@/services/offlineStorage";
 import { ExportFormat, exportNotes } from "@/services/exportService";
 import { NoteFilters } from "./note-list/NoteFilters";
-import { WifiOff, Loader2 } from "lucide-react";
+import { WifiOff } from "lucide-react";
 
 async function getNotes(folderId?: string) {
   const query = supabase
     .from("notes")
-    .select("*, folders(name), attachments(*)")
+    .select("*, folders(name), note_tags(tag_id), attachments(*)")
     .order("updated_at", { ascending: false });
 
   if (folderId) {
@@ -25,6 +25,43 @@ async function getNotes(folderId?: string) {
   
   if (error) throw error;
   
+  if (data && data.length > 0) {
+    const tagIds = new Set<string>();
+    data.forEach(note => {
+      if (note.note_tags) {
+        note.note_tags.forEach((tagRel: any) => {
+          tagIds.add(tagRel.tag_id);
+        });
+      }
+    });
+    
+    let tagsData: any[] = [];
+    if (tagIds.size > 0) {
+      const { data: tagsResult, error: tagsError } = await supabase
+        .from("tags")
+        .select("*")
+        .in("id", Array.from(tagIds));
+        
+      if (!tagsError) {
+        tagsData = tagsResult;
+      }
+    }
+    
+    return data.map(note => {
+      const noteTags = note.note_tags 
+        ? tagsData.filter(tag => 
+            note.note_tags.some((tagRel: any) => tagRel.tag_id === tag.id)
+          )
+        : [];
+        
+      return {
+        ...note,
+        tags: noteTags,
+        note_tags: undefined
+      };
+    }) as Note[];
+  }
+  
   return data as Note[];
 }
 
@@ -34,15 +71,15 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
   const [sortBy, setSortBy] = useState("updated_at");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [mergedNotes, setMergedNotes] = useState<Note[]>([]);
 
-  const { data: onlineNotes = [], isLoading, error } = useQuery({
+  const { data: onlineNotes = [], isLoading } = useQuery({
     queryKey: ["notes", folderId],
     queryFn: () => getNotes(folderId),
     enabled: isOnline,
-    retry: 1
   });
 
   useEffect(() => {
@@ -65,9 +102,7 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
         setMergedNotes(onlineNotes);
       } else {
         try {
-          const { data: userData, error: userError } = await supabase.auth.getUser();
-          if (userError) throw userError;
-          
+          const { data: userData } = await supabase.auth.getUser();
           if (userData.user) {
             const offlineNotes = await getOfflineNotes(userData.user.id);
             
@@ -86,13 +121,6 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
     
     loadAllNotes();
   }, [isOnline, onlineNotes, folderId]);
-
-  useEffect(() => {
-    if (error) {
-      console.error("Error fetching notes:", error);
-      toast.error("Failed to load notes. Please try again.");
-    }
-  }, [error]);
 
   const handleDelete = async (noteId: string) => {
     const { error } = await supabase
@@ -132,6 +160,20 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
     }
   };
 
+  const allTags = Array.from(
+    new Set(
+      mergedNotes
+        .filter(note => note.tags && note.tags.length > 0)
+        .flatMap(note => note.tags || [])
+        .map(tag => tag.id)
+    )
+  ).map(tagId => {
+    const tag = mergedNotes
+      .flatMap(note => note.tags || [])
+      .find(tag => tag.id === tagId);
+    return tag;
+  }).filter(Boolean);
+
   const filteredNotes = mergedNotes
     .filter(note => {
       const matchesSearch = searchTerm
@@ -139,7 +181,11 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
           note.content.toLowerCase().includes(searchTerm.toLowerCase())
         : true;
         
-      return matchesSearch;
+      const matchesTag = tagFilter
+        ? note.tags && note.tags.some(tag => tag.id === tagFilter)
+        : true;
+        
+      return matchesSearch && matchesTag;
     })
     .sort((a, b) => {
       if (sortBy === "title") {
@@ -170,8 +216,11 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
         <NoteFilters 
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          tagFilter={tagFilter}
+          onTagFilterChange={setTagFilter}
           sortBy={sortBy}
           onSortByChange={setSortBy}
+          allTags={allTags}
           onExportAll={handleExportAll}
           notesCount={filteredNotes.length}
         />
@@ -179,14 +228,7 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
       
       <div className="flex-1 overflow-auto divide-y">
         {isLoading && isOnline ? (
-          <div className="p-4 text-center text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-            <p>Loading notes...</p>
-          </div>
-        ) : error ? (
-          <div className="p-4 text-center text-destructive">
-            <p>Failed to load notes. Please try again.</p>
-          </div>
+          <div className="p-4 text-center text-muted-foreground">Loading notes...</div>
         ) : filteredNotes.length > 0 ? (
           filteredNotes.map((note) => (
             <NoteCard
@@ -198,7 +240,7 @@ export function NoteList({ onNoteSelect }: { onNoteSelect: (note: Note | null) =
           ))
         ) : (
           <div className="p-4 text-center text-muted-foreground">
-            {searchTerm ? "No matching notes found" : "No notes yet"}
+            {searchTerm || tagFilter ? "No matching notes found" : "No notes yet"}
           </div>
         )}
       </div>

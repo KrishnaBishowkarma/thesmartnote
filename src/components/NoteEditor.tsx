@@ -1,26 +1,18 @@
 
 import { Button } from "@/components/ui/button";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Note, Attachment, Tag as TagType } from "@/types/note";
+import { Note } from "@/types/note";
 import { EditorToolbar } from "./note-editor/EditorToolbar";
 import { FolderSelector } from "./note-editor/FolderSelector";
-import { EditorContent } from "./note-editor/EditorContent";
-import { FileAttachments } from "./FileAttachments";
-import { TagsManager } from "./TagsManager";
 import { registerSyncEvents } from "@/services/offlineStorage";
 import { ExportFormat } from "@/services/exportService";
 import { useSpeechRecognition } from "./note-editor/useSpeechRecognition";
 import { useNoteUtilities } from "./note-editor/NoteUtilities";
 import { useNoteSaveHandler } from "./note-editor/NoteSaveHandler";
+import { EditorTabs } from "./note-editor/EditorTabs";
 
+// Import functions for data fetching
 async function getNoteTags(noteId: string) {
   const { data, error } = await supabase
     .from("note_tags")
@@ -60,31 +52,17 @@ interface NoteEditorProps {
 }
 
 export function NoteEditor({ note = null, onNoteChange }: NoteEditorProps) {
+  // State management
   const [title, setTitle] = useState(note?.title || "");
   const [content, setContent] = useState(note?.content || "");
   const [selectedFolder, setSelectedFolder] = useState(note?.folder_id || "");
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [tags, setTags] = useState<TagType[]>([]);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
+  const [attachments, setAttachments] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("content");
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleFinalTranscript = (text: string, position?: number) => {
-    if (position !== undefined && contentRef.current) {
-      const cursorPosition = position || contentRef.current.selectionStart;
-      const newContent = 
-        content.substring(0, cursorPosition) + 
-        text + 
-        content.substring(cursorPosition);
-      setContent(newContent);
-    } else {
-      setContent(prevContent => prevContent + " " + text);
-    }
-  };
-
-  const { isRecording, interimText, toggleSpeechRecognition } = 
-    useSpeechRecognition(handleFinalTranscript);
-
+  // Load note data when note changes
   useEffect(() => {
     if (note) {
       setTitle(note.title);
@@ -116,9 +94,28 @@ export function NoteEditor({ note = null, onNoteChange }: NoteEditorProps) {
     }
   }, [note]);
 
+  // Register sync events
   useEffect(() => {
     registerSyncEvents(supabase);
   }, []);
+
+  // Speech recognition handler
+  const handleFinalTranscript = (text: string, position?: number) => {
+    if (position !== undefined && contentRef.current) {
+      const cursorPosition = position || contentRef.current.selectionStart;
+      const newContent = 
+        content.substring(0, cursorPosition) + 
+        text + 
+        content.substring(cursorPosition);
+      setContent(newContent);
+    } else {
+      setContent(prevContent => prevContent + " " + text);
+    }
+  };
+
+  // Custom hooks
+  const { isRecording, interimText, toggleSpeechRecognition } = 
+    useSpeechRecognition(handleFinalTranscript);
 
   const { handleFormat, summarizeNoteContent, handleExport } = useNoteUtilities({
     title,
@@ -130,11 +127,33 @@ export function NoteEditor({ note = null, onNoteChange }: NoteEditorProps) {
     contentRef
   });
 
+  const { handleSave, isSaving } = useNoteSaveHandler({
+    note,
+    title,
+    content,
+    selectedFolder,
+    tags,
+    attachments,
+    onNoteSaved: () => {
+      setTitle("");
+      setContent("");
+      setSelectedFolder("");
+      setTags([]);
+      setAttachments([]);
+      setActiveTab("content");
+      
+      if (onNoteChange) {
+        onNoteChange(null);
+      }
+    },
+    onNoteChange
+  });
+
+  // Event handlers
   const handleFormatClick = (type: 'bold' | 'italic' | 'list') => {
     const result = handleFormat(type);
     if (result) {
       setContent(result.newContent);
-      // Re-focus and set selection if needed
       setTimeout(() => {
         if (contentRef.current) {
           contentRef.current.focus();
@@ -166,17 +185,6 @@ export function NoteEditor({ note = null, onNoteChange }: NoteEditorProps) {
       onNoteChange(null);
     }
   };
-  
-  const { handleSave, isSaving } = useNoteSaveHandler({
-    note,
-    title,
-    content,
-    selectedFolder,
-    tags,
-    attachments,
-    onNoteSaved: clearEditorState,
-    onNoteChange
-  });
 
   return (
     <div className="flex h-full flex-col">
@@ -212,38 +220,19 @@ export function NoteEditor({ note = null, onNoteChange }: NoteEditorProps) {
         </div>
       </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-2">
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="tags">Tags</TabsTrigger>
-          <TabsTrigger value="attachments">Attachments</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="content" className="flex-1">
-          <EditorContent 
-            content={content}
-            onContentChange={setContent}
-            interimText={interimText}
-            contentRef={contentRef}
-          />
-        </TabsContent>
-        
-        <TabsContent value="tags" className="flex-1 p-4">
-          <TagsManager 
-            noteId={note?.id} 
-            selectedTags={tags} 
-            onTagsChange={setTags} 
-          />
-        </TabsContent>
-        
-        <TabsContent value="attachments" className="flex-1 p-4">
-          <FileAttachments 
-            noteId={note?.id} 
-            attachments={attachments} 
-            onAttachmentsChange={setAttachments} 
-          />
-        </TabsContent>
-      </Tabs>
+      <EditorTabs
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        content={content}
+        setContent={setContent}
+        interimText={interimText}
+        contentRef={contentRef}
+        tags={tags}
+        setTags={setTags}
+        attachments={attachments}
+        setAttachments={setAttachments}
+        noteId={note?.id}
+      />
     </div>
   );
 }

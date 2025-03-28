@@ -20,7 +20,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
-      console.log('Session check completed, user:', session?.user);
     });
 
     // Listen for changes on auth state (signed in, signed out, etc.)
@@ -29,7 +28,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
-      console.log('Auth state changed, user:', session?.user);
     });
 
     return () => subscription.unsubscribe();

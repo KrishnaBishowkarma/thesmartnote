@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
@@ -26,7 +27,7 @@ export default function Home() {
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button 
             size="lg" 
-            onClick={() => navigate(user ? "/notes" : "/auth")}
+            onClick={() => navigate(user ? "/" : "/auth")}
             className="px-8 py-6 text-lg"
           >
             {user ? "My Notes" : "Get Started"}
@@ -79,7 +80,7 @@ export default function Home() {
           </p>
           <Button 
             size="lg" 
-            onClick={() => navigate(user ? "/notes" : "/auth")}
+            onClick={() => navigate(user ? "/" : "/auth")}
             className="mt-8 px-8 py-6 text-lg"
           >
             {user ? "Open App" : "Sign Up Free"}

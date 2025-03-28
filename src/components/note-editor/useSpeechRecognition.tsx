@@ -6,7 +6,8 @@ export function useSpeechRecognition(onFinalTranscript: (text: string, position?
   const [isRecording, setIsRecording] = useState(false);
   const [interimText, setInterimText] = useState("");
   const recognitionRef = useRef<any>(null);
-
+  const finalTranscriptsRef = useRef<Set<string>>(new Set());
+  
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -21,16 +22,23 @@ export function useSpeechRecognition(onFinalTranscript: (text: string, position?
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = "en-US";
+      
+      // Clear previously processed transcripts when starting a new session
+      finalTranscriptsRef.current.clear();
 
       recognitionRef.current.onresult = (event: any) => {
-        let finalTranscript = "";
         let interimTranscript = "";
+        let finalTranscript = "";
 
-        for (let i = 0; i < event.results.length; i++) {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           
           if (event.results[i].isFinal) {
-            finalTranscript += transcript;
+            // Check if we've already processed this final transcript
+            if (!finalTranscriptsRef.current.has(transcript)) {
+              finalTranscript += transcript;
+              finalTranscriptsRef.current.add(transcript);
+            }
           } else {
             interimTranscript += transcript;
           }
@@ -40,12 +48,12 @@ export function useSpeechRecognition(onFinalTranscript: (text: string, position?
 
         if (finalTranscript) {
           onFinalTranscript(finalTranscript);
-          setInterimText("");
         }
       };
 
       recognitionRef.current.onstart = () => {
         setIsRecording(true);
+        setInterimText("");
       };
 
       recognitionRef.current.onend = () => {

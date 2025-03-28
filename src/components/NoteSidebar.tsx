@@ -1,4 +1,4 @@
-import { FolderIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import { FolderIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,7 +35,7 @@ export function NoteSidebar() {
   const [newFolderName, setNewFolderName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: folders = [], refetch } = useQuery({
+  const { data: folders = [] } = useQuery({
     queryKey: ["folders"],
     queryFn: getFolders,
   });
@@ -83,21 +83,6 @@ export function NoteSidebar() {
     setIsDialogOpen(false);
   };
 
-  const deleteFolder = async (folderId: string) => {
-    const { error } = await supabase
-      .from("folders")
-      .delete()
-      .eq("id", folderId);
-
-    if (error) {
-      toast.error("Failed to delete folder");
-      return;
-    }
-
-    toast.success("Folder deleted successfully");
-    refetch();
-  };
-
   return (
     <Sidebar>
       <SidebarContent>
@@ -124,7 +109,7 @@ export function NoteSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <a href="/notes" className="flex items-center gap-2">
+                  <a href="/" className="flex items-center gap-2">
                     <FolderIcon className="h-4 w-4" />
                     <span>All Notes</span>
                   </a>
@@ -132,25 +117,15 @@ export function NoteSidebar() {
               </SidebarMenuItem>
               {folders.map((folder) => (
                 <SidebarMenuItem key={folder.id}>
-                  <div className="flex items-center justify-between w-full">
-                    <SidebarMenuButton asChild className="flex-1">
-                      <a
-                        href={`/folder/${folder.id}`}
-                        className="flex items-center gap-2"
-                      >
-                        <FolderIcon className="h-4 w-4" />
-                        <span>{folder.name}</span>
-                      </a>
-                    </SidebarMenuButton>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => deleteFolder(folder.id)}
+                  <SidebarMenuButton asChild>
+                    <a
+                      href={`/folder/${folder.id}`}
+                      className="flex items-center gap-2"
                     >
-                      <Trash2Icon className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+                      <FolderIcon className="h-4 w-4" />
+                      <span>{folder.name}</span>
+                    </a>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
               <SidebarMenuItem>

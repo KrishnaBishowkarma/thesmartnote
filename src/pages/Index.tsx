@@ -1,19 +1,39 @@
+
 import { NoteSidebar } from "@/components/NoteSidebar";
 import { NoteList } from "@/components/NoteList";
 import { NoteEditor } from "@/components/NoteEditor";
 import { UserMenu } from "@/components/UserMenu";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Note } from "@/types/note";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { useAuth } from "@/components/AuthProvider";
-import { Loader2 } from "lucide-react";
 
 const Index = () => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { loading, user } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Ensure we're properly authenticated before rendering
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  // Show loading state until authentication is resolved
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-lg text-primary">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render the main content until we're sure the user is authenticated
+  if (!user) return null;
 
   // This handler ensures we stay on the notes page after saving
   const handleNoteChange = (updatedNote: Note | null) => {
@@ -24,19 +44,6 @@ const Index = () => {
       navigate("/notes", { replace: true });
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    navigate("/auth");
-    return null;
-  }
 
   return (
     <SidebarProvider>

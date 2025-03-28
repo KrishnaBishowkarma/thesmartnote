@@ -1,10 +1,14 @@
-
 export async function summarizeContent(content: string) {
   if (!content.trim()) {
     throw new Error("No content to summarize");
   }
+
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Gemini API key is not configured");
+  }
   
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyDIboppp6hwrrV2H_RGC5n70CqtULQEh4g', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

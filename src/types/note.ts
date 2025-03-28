@@ -1,3 +1,4 @@
+
 export interface Note {
   id: string;
   title: string;
@@ -11,7 +12,15 @@ export interface Note {
   folders?: {
     name: string;
   };
+  tags?: Tag[];
   attachments?: Attachment[];
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  user_id: string;
+  created_at: string;
 }
 
 export interface Attachment {

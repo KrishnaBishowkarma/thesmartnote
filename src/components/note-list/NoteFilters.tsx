@@ -1,3 +1,4 @@
+
 import { SearchIcon, FilterIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,13 +16,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ExportFormat, exportNotes } from "@/services/exportService";
+import { Tag } from "@/types/note";
 import { toast } from "sonner";
 
 interface NoteFiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  tagFilter: string;
+  onTagFilterChange: (value: string) => void;
   sortBy: string;
   onSortByChange: (value: string) => void;
+  allTags: Tag[];
   onExportAll: (format: ExportFormat) => void;
   notesCount: number;
 }
@@ -29,8 +34,11 @@ interface NoteFiltersProps {
 export function NoteFilters({
   searchTerm,
   onSearchChange,
+  tagFilter,
+  onTagFilterChange,
   sortBy,
   onSortByChange,
+  allTags,
   onExportAll,
   notesCount
 }: NoteFiltersProps) {
@@ -48,6 +56,22 @@ export function NoteFilters({
       </div>
       
       <div className="flex gap-2">
+        {allTags.length > 0 && (
+          <Select value={tagFilter} onValueChange={onTagFilterChange}>
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Filter by tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Tags</SelectItem>
+              {allTags.map(tag => tag && (
+                <SelectItem key={tag.id} value={tag.id}>
+                  {tag.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        
         <Select value={sortBy} onValueChange={onSortByChange}>
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Sort by" />
