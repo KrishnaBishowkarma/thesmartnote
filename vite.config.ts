@@ -30,8 +30,15 @@ export default defineConfig(({ mode }) => {
             'vendor': ['react', 'react-dom', 'react-router-dom'],
             'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-slot'],
             'supabase': ['@supabase/supabase-js'],
-            'editor': ['@tiptap/react'],
           },
+        },
+      },
+      target: 'esnext',
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: true,
+          drop_debugger: true,
         },
       },
     },
