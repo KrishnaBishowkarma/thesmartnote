@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
             'vendor': ['react', 'react-dom', 'react-router-dom'],
             'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-slot'],
             'supabase': ['@supabase/supabase-js'],
-            'editor': ['@tiptap/react', '@tiptap/pm'],
+            'editor': ['@tiptap/react'],
           },
         },
       },
