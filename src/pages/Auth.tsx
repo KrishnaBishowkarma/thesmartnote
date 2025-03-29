@@ -50,11 +50,31 @@ export default function Auth() {
     handleEmailVerification();
   }, [location]);
 
+  const validatePassword = (password: string) => {
+    if (password.length < 6) {
+      return "Password must be at least 6 characters long";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/[a-z]/.test(password)) {
+      return "Password must contain at least one lowercase letter";
+    }
+    if (!/[0-9]/.test(password)) {
+      return "Password must contain at least one number";
+    }
+    return null;
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       if (isForgotPassword) {
+        if (!email) {
+          toast.error("Please enter your email address");
+          return;
+        }
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth?type=recovery`,
         });
@@ -66,7 +86,16 @@ export default function Auth() {
         setEmail("");
         setPassword("");
       } else if (isSignUp) {
-        // First check if user exists
+        // Validate password
+        const passwordError = validatePassword(password);
+        if (passwordError) {
+          toast.error("Invalid password", {
+            description: passwordError,
+          });
+          return;
+        }
+
+        // Check if user exists
         const { data: existingUser } = await supabase.auth.getUser();
         if (existingUser.user) {
           toast.error("Account exists", {
@@ -97,6 +126,11 @@ export default function Auth() {
         }
       } else {
         // Sign in
+        if (!email || !password) {
+          toast.error("Please enter both email and password");
+          return;
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -222,6 +256,11 @@ export default function Auth() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                  {isSignUp && (
+                    <p className="text-xs text-muted-foreground">
+                      Password must be at least 6 characters long and contain uppercase, lowercase, and numbers.
+                    </p>
+                  )}
                 </div>
               )}
               <Button type="submit" className="w-full" disabled={loading}>
